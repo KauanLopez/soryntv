@@ -1,0 +1,8 @@
+{
+  "name": "Soryn - Immersive Media Hub",
+  "description": "A cinematic, neo-brutalist tech platform for discovering movies, series, TV channels, and music with support for external media sources like M3U and HLS.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
