@@ -27,59 +27,54 @@ const App: React.FC = () => {
     const [heroMovies, setHeroMovies] = useState<TMDBResult[]>([]);
     const [trending, setTrending] = useState<{ movies: TMDBResult[], tv: TMDBResult[] } | null>(null);
 
-    const checkProfile = async (userId: string) => {
+    const checkProfile = async (userId: string | null) => {
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('onboarding_completed')
-                .eq('id', userId)
-                .single();
+            if (userId && userId !== 'anonymous') {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('onboarding_completed')
+                    .eq('id', userId)
+                    .single();
 
-            if (error && error.code !== 'PGRST116') {
-                console.error('Error fetching profile:', error);
-            }
+                if (error && error.code !== 'PGRST116') {
+                    console.error('Error fetching profile:', error);
+                }
 
-            if (data) {
-                setOnboardingComplete(data.onboarding_completed);
-                // If onboarding complete, fetch recommendations
-                if (data.onboarding_completed) {
-                    try {
-                        const recs = await recommendationsService.getHeroRecommendations(userId);
-                        setHeroMovies(recs);
-                        const trendData = await recommendationsService.getTrending();
-                        setTrending(trendData);
-                    } catch (recError) {
-                        console.error('Error loading recommendations:', recError);
-                    }
+                if (data) {
+                    setOnboardingComplete(data.onboarding_completed);
+                } else {
+                    setOnboardingComplete(false);
                 }
             } else {
-                setOnboardingComplete(false);
+                setOnboardingComplete(true); // Default to true for anonymous users
+            }
+            
+            // Always fetch recommendations
+            try {
+                const recs = await recommendationsService.getHeroRecommendations(userId || 'anonymous');
+                setHeroMovies(recs);
+                const trendData = await recommendationsService.getTrending();
+                setTrending(trendData);
+            } catch (recError) {
+                console.error('Error loading recommendations:', recError);
             }
         } catch (e) {
             console.error(e);
-            setOnboardingComplete(false);
+            setOnboardingComplete(true);
         }
     };
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            if (session) {
-                checkProfile(session.user.id).then(() => setLoading(false));
-            } else {
-                setLoading(false);
-            }
+            checkProfile(session?.user?.id || null).then(() => setLoading(false));
         });
 
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            if (session) {
-                checkProfile(session.user.id);
-            } else {
-                setOnboardingComplete(null);
-            }
+            checkProfile(session?.user?.id || null);
         });
 
         return () => subscription.unsubscribe();
@@ -113,11 +108,7 @@ const App: React.FC = () => {
         );
     }
 
-    if (!session) {
-        return <Login />;
-    }
-
-    if (onboardingComplete === false) {
+    if (onboardingComplete === false && session) {
         return <Onboarding onComplete={handleOnboardingComplete} />;
     }
 

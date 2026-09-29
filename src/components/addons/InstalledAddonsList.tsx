@@ -15,7 +15,11 @@ export const InstalledAddonsList: React.FC<InstalledAddonsListProps> = ({ refres
         setLoading(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
+            if (!user) {
+                setAddons([]);
+                setError(null);
+                return;
+            }
 
             const { data, error } = await supabase
                 .from('user_addons')

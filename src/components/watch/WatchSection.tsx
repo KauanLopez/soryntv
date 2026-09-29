@@ -29,17 +29,23 @@ export const WatchSection: React.FC<WatchSectionProps> = ({ media, title, number
     useEffect(() => {
         const initManager = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return; // Should allow public/default addons later?
+            let urls: string[] = [];
+            
+            if (session) {
+                // Fetch user addons from DB
+                const { data: userAddons } = await supabase
+                    .from('user_addons')
+                    .select('transport_url')
+                    .eq('user_id', session.user.id);
 
-            // Fetch user addons from DB
-            const { data: userAddons } = await supabase
-                .from('user_addons')
-                .select('transport_url')
-                .eq('user_id', session.user.id);
+                urls = userAddons?.map(a => a.transport_url) || [];
+            }
 
-            const urls = userAddons?.map(a => a.transport_url) || [];
-            // Maybe add a default official one?
-            // urls.push('https://v3-cinemeta.strem.io/manifest.json'); 
+            // Fallbacks if no addons are installed or user is anonymous
+            if (urls.length === 0) {
+                urls.push('https://v3-cinemeta.strem.io/manifest.json');
+                // You can add more public default addons here if you want
+            }
 
             const manager = new AddonManager(urls);
             await manager.init(); // fetch manifests

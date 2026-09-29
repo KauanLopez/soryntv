@@ -15,19 +15,15 @@ interface VideoPlayerModalProps {
     subtitles?: { label: string; src: string; lang: string }[];
 }
 
-// Logic to determine if a stream plays in browser (HTTP) or needs external player (Magnet/Torrent)
 const isStreamPlayable = (url?: string) => {
     if (!url) return false;
-    // Basic check: HTTP/HTTPS usually works. Magnet/UDP/etc do not.
     return url.startsWith('http://') || url.startsWith('https://');
 };
 
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onClose, stream, title, subtitles }) => {
 
-    // Auto-focus logic for keyboard accessibility
     useEffect(() => {
         if (isOpen) {
-            // Lock body scroll?
             document.body.style.overflow = 'hidden';
         }
         return () => {
@@ -51,11 +47,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
         }
     };
 
-    // For torrent streams, use full-screen Webtor player
-
     if (isTorrent) {
         return createPortal(
-            <>
+            <div className="fixed inset-0 z-[9999] bg-black"> {/* Container wrapper for torrent to ensure z-index */}
                 {/* Back button floating over the player */}
                 <button
                     onClick={onClose}
@@ -63,7 +57,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
                         position: 'fixed',
                         top: '16px',
                         left: '16px',
-                        zIndex: 200,
+                        zIndex: 10000, // Higher than container
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
@@ -79,20 +73,22 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
                     <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>arrow_back</span>
                 </button>
 
-                {/* Webtor Player - takes full screen */}
+                {/* Webtor Player */}
                 <WebtorPlayer
                     magnet={`magnet:?xt=urn:btih:${stream.infoHash}&dn=${encodeURIComponent(title || 'video')}`}
                     onClose={onClose}
                 />
-            </>,
+            </div>,
             document.body
         );
     }
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] bg-black animate-in fade-in duration-300 flex flex-col">
+        // [ALTERAÇÃO AQUI]: z-[100] mudado para z-[9999] para garantir que fique acima da Navbar (z-50)
+        <div className="fixed inset-0 z-[9999] bg-black animate-in fade-in duration-300 flex flex-col">
 
             {/* Header / Overlay Controls */}
+            {/* [OPCIONAL]: Reduzi o padding de p-6 para p-4 se você achar que o botão fica muito baixo */}
             <div className="absolute top-0 left-0 w-full p-6 z-50 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
                 <div className="pointer-events-auto">
                     <button onClick={onClose} className="group flex items-center gap-2 text-white/70 hover:text-white transition-colors">
@@ -104,7 +100,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 w-full h-full relative flex items-center justify-center">
+            <div className="flex-1 w-full h-full relative flex items-center justify-center bg-black">
                 {playable ? (
                     <MediaPlayer
                         title={title}
@@ -118,7 +114,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
                         <DefaultVideoLayout icons={defaultLayoutIcons} />
                     </MediaPlayer>
                 ) : (
-                    /* Fallback for other non-playable streams */
+                    /* Fallback UI */
                     <div className="flex flex-col items-center justify-center p-8 text-center space-y-8 max-w-lg mx-auto animate-in slide-in-from-bottom-8 duration-500">
                         <div className="relative">
                             <div className="absolute inset-0 bg-accentTeal/20 blur-3xl rounded-full"></div>

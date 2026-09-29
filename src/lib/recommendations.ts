@@ -18,7 +18,8 @@ const ensureGenreMap = async () => {
 
 export const recommendationsService = {
     // 1. Get User Preferred Genres from Supabase
-    getUserGenres: async (userId: string): Promise<string[]> => {
+    getUserGenres: async (userId: string | null): Promise<string[]> => {
+        if (!userId || userId === 'anonymous') return [];
         const { data } = await supabase
             .from('user_genres')
             .select('genre')
@@ -29,7 +30,7 @@ export const recommendationsService = {
     },
 
     // 2. Get Recommendations based on genres
-    getHeroRecommendations: async (userId: string): Promise<TMDBResult[]> => {
+    getHeroRecommendations: async (userId: string | null): Promise<TMDBResult[]> => {
         // Get user genres
         const userGenres = await recommendationsService.getUserGenres(userId);
 
@@ -100,17 +101,19 @@ export const recommendationsService = {
     },
 
     // NEW: Get content for Movies or Series pages
-    getPageContent: async (type: 'movie' | 'series', userId: string) => {
+    getPageContent: async (type: 'movie' | 'series', userId: string | null) => {
         const mediaType = type === 'movie' ? 'movie' : 'tv';
 
         // Get user preferred genres for this media type
-        const { data: userGenresData } = await supabase
-            .from('user_genres')
-            .select('genre')
-            .eq('user_id', userId)
-            .eq('media_type', type);
-
-        const userGenres = userGenresData?.map(d => d.genre) || [];
+        let userGenres: string[] = [];
+        if (userId && userId !== 'anonymous') {
+            const { data: userGenresData } = await supabase
+                .from('user_genres')
+                .select('genre')
+                .eq('user_id', userId)
+                .eq('media_type', type);
+            userGenres = userGenresData?.map(d => d.genre) || [];
+        }
 
         // Ensure genre map is populated
         await ensureGenreMap();

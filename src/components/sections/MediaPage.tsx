@@ -35,10 +35,6 @@ export const MediaPage: React.FC<MediaPageProps> = ({ type, onSelectMedia }) => 
 
             // Get current user
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                setLoading(false);
-                return;
-            }
 
             if (type === 'music') {
                 // Music: Keep mock data for now since TMDB doesn't support music
@@ -49,7 +45,8 @@ export const MediaPage: React.FC<MediaPageProps> = ({ type, onSelectMedia }) => 
 
             // Fetch page content from recommendation service
             const mediaType = type === 'movies' ? 'movie' : 'series';
-            const content = await recommendationsService.getPageContent(mediaType, user.id);
+            const userId = user?.id || 'anonymous';
+            const content = await recommendationsService.getPageContent(mediaType, userId);
 
             setForYou(content.forYou);
             setTrending(content.trending);

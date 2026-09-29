@@ -1,0 +1,2 @@
+domain=soryntv.netlify.app
+token=iyf2ngpdkbeiihcipo9lqxdb15ft3dkk

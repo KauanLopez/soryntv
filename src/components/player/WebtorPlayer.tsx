@@ -3,257 +3,189 @@ import React, { useEffect, useRef, useState } from 'react';
 interface WebtorPlayerProps {
     magnet: string;
     onClose?: () => void;
+    poster?: string;
+    title?: string;
 }
 
 declare global {
     interface Window {
-        webtor: any[];
+        webtor?: any[];
     }
 }
 
-/**
- * WebtorPlayer using the official Webtor SDK via CDN script
- * Based on: https://github.com/webtor-io/embed-sdk-js
- */
-export const WebtorPlayer: React.FC<WebtorPlayerProps> = ({
-    magnet,
-    onClose
-}) => {
+export const WebtorPlayer: React.FC<WebtorPlayerProps> = ({ magnet, onClose, poster, title }) => {
+    const playerRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const scriptLoadedRef = useRef(false);
+    const playerId = 'webtor-player-container';
 
+    const [isLoading, setIsLoading] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
+    const trafficInterval = useRef<any>(null);
+
+    // --- 📡 DETETIVE DE TRÁFEGO PESADO ---
     useEffect(() => {
-        console.log('[WebtorPlayer] Initializing for magnet:', magnet);
+        if (!isLoading) return;
 
-        // Initialize webtor array if not exists
-        if (!window.webtor) {
-            window.webtor = [];
-        }
+        const checkHeavyTraffic = () => {
+            // Pega os recursos baixados recentemente
+            const resources = performance.getEntriesByType("resource");
+            const now = performance.now();
 
-        // Load the Webtor SDK script if not already loaded
-        const loadScript = () => {
-            return new Promise<void>((resolve, reject) => {
-                // Check if script already exists
-                if (document.querySelector('script[src*="webtor"]') || scriptLoadedRef.current) {
-                    console.log('[WebtorPlayer] Script already loaded');
-                    resolve();
-                    return;
-                }
+            // Filtra apenas o que aconteceu nos últimos 2 segundos
+            const recent = resources.filter(r => r.startTime > now - 2000);
 
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/@webtor/embed-sdk-js/dist/index.min.js';
-                script.async = true;
-                script.charset = 'utf-8';
+            // PROCURA POR ARQUIVOS "PESADOS"
+            // Pedaços de vídeo (Chunks) geralmente têm mais de 100KB ou 200KB.
+            // Imagens e scripts de analytics geralmente têm 2KB a 50KB.
+            const hasHeavyDownload = recent.some(r => {
+                // Se baixou algo maior que 150KB (approx) vindo do webtor ou blob
+                // OBS: transferSize pode ser 0 se vier do cache, então olhamos encodedBodySize também
+                const size = (r as any).transferSize || (r as any).encodedBodySize || 0;
 
-                script.onload = () => {
-                    console.log('[WebtorPlayer] SDK script loaded successfully');
-                    scriptLoadedRef.current = true;
-                    resolve();
-                };
+                const isVideoChunk = size > 150000; // > 150KB
+                const isWebtorRelated = r.name.includes('webtor') || r.name.includes('blob') || r.name.includes('segment');
 
-                script.onerror = () => {
-                    console.error('[WebtorPlayer] Failed to load SDK script');
-                    reject(new Error('Failed to load Webtor SDK'));
-                };
-
-                document.body.appendChild(script);
+                return isVideoChunk && isWebtorRelated;
             });
-        };
 
-        const initPlayer = async () => {
-            try {
-                await loadScript();
+            if (hasHeavyDownload) {
+                console.log("🚀 [DETECTOR] Download pesado detectado! O filme começou.");
+                setStatusMessage('Iniciando reprodução...');
 
-                // Small delay to ensure script is initialized
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                if (containerRef.current) {
-                    // Clear container
-                    containerRef.current.innerHTML = '';
-
-                    const videoId = `webtor-${Math.random().toString(36).substr(2, 9)}`;
-
-                    // Create video element with magnet as src
-                    const videoEl = document.createElement('video');
-                    videoEl.controls = true;
-                    videoEl.src = magnet;
-                    videoEl.id = videoId;
-                    videoEl.style.width = '100%';
-                    videoEl.style.height = '100%';
-                    videoEl.className = 'webtor';
-
-                    containerRef.current.appendChild(videoEl);
-
-                    console.log('[WebtorPlayer] Video element created with ID:', videoId);
-
-                    // Explicitly trigger Webtor in case it missed the DOM scan
-                    if (window.webtor) {
-                        window.webtor.push({
-                            id: videoId,
-                            magnet: magnet,
-                            width: '100%',
-                            height: '100%',
-                            i18n: {
-                                en: {
-                                    common: {
-                                        "play": "Play",
-                                    }
-                                }
-                            }
-                        });
-                    }
-
-                    // The SDK should automatically pick up the video element
+                // Pequeno delay para garantir que a imagem apareceu
+                setTimeout(() => {
                     setIsLoading(false);
-                }
-            } catch (err: any) {
-                console.error('[WebtorPlayer] Error:', err);
-                setError(err.message || 'Failed to initialize player');
-                setIsLoading(false);
+                    setIsPlaying(true);
+                }, 1000);
             }
         };
 
-        initPlayer();
+        // Verifica a cada 800ms
+        trafficInterval.current = setInterval(checkHeavyTraffic, 800);
 
         return () => {
-            // Cleanup
-            if (containerRef.current) {
-                containerRef.current.innerHTML = '';
+            if (trafficInterval.current) clearInterval(trafficInterval.current);
+        };
+    }, [isLoading]);
+
+    useEffect(() => {
+        if (playerRef.current) playerRef.current.innerHTML = '';
+        setIsLoading(false);
+        setIsPlaying(false);
+
+        window.webtor = window.webtor || [];
+        window.webtor.push({
+            id: playerId,
+            magnet: magnet,
+            width: '100%',
+            height: '100%',
+            theme: 'dark',
+            title: title || 'SorynTV',
+            poster: poster,
+            lang: 'pt-BR',
+            features: {
+                continue: true,
+                p2p: true,
+                autoplay: false,
+                controls: true,
+                settings: true,
+                subtitles: true,
+            },
+            on: {
+                init: () => console.log('Webtor: Init'),
+                download: () => setStatusMessage('Baixando...'),
+                play: () => {
+                    console.log('Webtor: Play detected');
+                    setIsLoading(false);
+                    setIsPlaying(true);
+                },
             }
+        });
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@webtor/embed-sdk-js/dist/index.min.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        return () => {
+            if (document.body.contains(script)) document.body.removeChild(script);
+            if (playerRef.current) playerRef.current.innerHTML = '';
+            if (trafficInterval.current) clearInterval(trafficInterval.current);
         };
     }, [magnet]);
 
-    if (error) {
-        return (
-            <div
-                style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#000',
-                    color: '#fff',
-                    zIndex: 100,
-                    padding: '24px',
-                    textAlign: 'center'
-                }}
-            >
-                <div style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '16px'
-                }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#ef4444' }}>warning</span>
-                </div>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>Failed to load Player</h3>
-                <p style={{ color: '#a1a1aa', maxWidth: '400px', marginBottom: '16px' }}>{error}</p>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <button
-                        onClick={() => window.location.reload()}
-                        style={{
-                            padding: '8px 24px',
-                            backgroundColor: '#dc2626',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: '#fff',
-                            fontWeight: 'bold',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Reload Page
-                    </button>
-                    {onClose && (
-                        <button
-                            onClick={onClose}
-                            style={{
-                                padding: '8px 24px',
-                                backgroundColor: '#3f3f46',
-                                border: 'none',
-                                borderRadius: '8px',
-                                color: '#fff',
-                                fontWeight: 'bold',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Go Back
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
-    }
+    // Detector de Clique (Blur)
+    useEffect(() => {
+        const handleFocusChange = () => {
+            const activeElement = document.activeElement;
+            const iframe = containerRef.current?.querySelector('iframe');
+
+            if (iframe && activeElement === iframe) {
+                setStatusMessage('Carregando Filme...');
+                setIsLoading(true);
+            }
+        };
+        window.addEventListener('blur', handleFocusChange);
+        return () => window.removeEventListener('blur', handleFocusChange);
+    }, []);
 
     return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                width: '100vw',
-                height: '100vh',
-                backgroundColor: '#000',
-                zIndex: 99
-            }}
-        >
-            {/* Loading Overlay */}
-            {isLoading && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#000',
-                        zIndex: 101,
-                        pointerEvents: 'none'
-                    }}
-                >
-                    <div
-                        style={{
-                            width: '64px',
-                            height: '64px',
-                            border: '4px solid rgba(255,255,255,0.2)',
-                            borderTopColor: '#14b8a6',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite'
-                        }}
-                    />
-                    <p style={{ color: '#71717a', marginTop: '16px' }}>Initializing Webtor Stream...</p>
-                    <style>{`
-                        @keyframes spin {
-                            to { transform: rotate(360deg); }
-                        }
-                    `}</style>
+        <div ref={containerRef} className="fixed inset-0 w-screen h-screen bg-black z-[9999] flex items-center justify-center overflow-hidden group cursor-pointer">
+
+            {/* IFRAME */}
+            <div id={playerId} ref={playerRef} className="w-full h-full flex items-center justify-center" />
+
+            {/* BOTÃO FANTASMA */}
+            {!isLoading && !isPlaying && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                    <div className="relative group-hover:scale-110 transition-transform duration-300 ease-out">
+                        <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 group-hover:opacity-40 rounded-full"></div>
+                        <div className="relative size-24 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full flex items-center justify-center shadow-2xl">
+                            <span className="material-symbols-outlined text-6xl text-white ml-2 drop-shadow-lg">play_arrow</span>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* Player Container */}
+            {/* CORTINA DE CARREGAMENTO */}
             <div
-                ref={containerRef}
-                style={{
-                    width: '100%',
-                    height: '100%'
-                }}
-            />
+                className={`absolute inset-0 z-[10000] flex flex-col items-center justify-center bg-black/95 transition-opacity duration-500 ${isLoading ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                    }`}
+            >
+                <div className="flex flex-col items-center gap-6 p-6 animate-in fade-in zoom-in duration-300">
+                    <div className="relative">
+                        <div className="size-16 rounded-full border-4 border-zinc-800 border-t-blue-500 animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-blue-500 animate-pulse">movie</span>
+                        </div>
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h3 className="text-white font-bold text-xl">Preparando Sessão</h3>
+                        <p className="text-zinc-400 text-sm font-mono animate-pulse">{statusMessage}</p>
+                    </div>
+                </div>
+
+                {/* BOTÃO DE SEGURANÇA (Caso a detecção de rede falhe) */}
+                <div className="absolute bottom-10 animate-in slide-in-from-bottom-4 duration-1000 delay-3000 fill-mode-forwards opacity-0" style={{ animationDelay: '3s' }}>
+                    <button
+                        onClick={() => setIsLoading(false)}
+                        className="flex items-center gap-2 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full text-xs transition-all border border-zinc-800 cursor-pointer pointer-events-auto shadow-lg"
+                    >
+                        <span className="material-symbols-outlined text-sm">visibility</span>
+                        Vídeo começou? Liberar Tela
+                    </button>
+                </div>
+            </div>
+
+            {onClose && (
+                <button
+                    onClick={onClose}
+                    className="absolute top-6 right-6 z-[10001] p-3 bg-black/50 hover:bg-white hover:text-black text-white rounded-full transition-all backdrop-blur-sm pointer-events-auto"
+                >
+                    <span className="material-symbols-outlined">close</span>
+                </button>
+            )}
         </div>
     );
 };
