@@ -1,6 +1,7 @@
 import React from 'react';
 import type { SelectedMedia } from '@/types';
 import { TMDBResult, getImageUrl } from '@/lib/tmdb';
+import { VerticalAdBanner } from '@/components/ads/VerticalAdBanner';
 
 interface DiscoverMoreProps {
     onSelectMedia: (media: SelectedMedia) => void;
@@ -153,15 +154,13 @@ export const DiscoverMore: React.FC<DiscoverMoreProps> = ({ onSelectMedia, trend
                     </div>
                 </button>
 
-                {/* Explore Grid (Static) */}
-                <button
-                    type="button"
-                    className="col-span-12 md:col-span-3 h-[300px] bg-transparent rounded-[2.5rem] border border-white/10 flex flex-col items-center justify-center p-8 text-center group hover:bg-white/5 focus:bg-white/5 focus:border-white focus:scale-[1.02] transition-all"
-                >
-                    <span className="material-symbols-outlined text-zinc-700 text-5xl mb-4 group-hover:text-white group-focus:text-white transition-colors">grid_view</span>
-                    <h3 className="text-lg font-black uppercase tracking-widest text-white">Explore Library</h3>
-                    <p className="text-zinc-600 text-sm">3,400+ titles available</p>
-                </button>
+                {/* Ad Banner (Sponsored) */}
+                <div className="col-span-12 md:col-span-3 h-[300px] bg-[#0F0F0F] rounded-[2.5rem] border border-white/5 flex flex-col items-center justify-center p-4 relative overflow-hidden group">
+                    <span className="absolute top-4 left-4 text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-black/50 px-2 py-0.5 rounded border border-white/5 z-10">
+                        Sponsored
+                    </span>
+                    <VerticalAdBanner className="w-full h-full scale-[0.85] opacity-80 group-hover:opacity-100 transition-opacity" />
+                </div>
             </div>
         </section>
     );

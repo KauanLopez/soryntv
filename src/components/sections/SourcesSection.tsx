@@ -3,6 +3,7 @@ import { SOURCE_NODES } from '@/constants/mediaData';
 import { AddAddonInput } from './AddAddonInput';
 import { InstalledAddonsList } from '@/components/addons/InstalledAddonsList';
 import { supabase } from '@/lib/supabase';
+import { VerticalAdBanner } from '@/components/ads/VerticalAdBanner';
 
 export const SourcesSection: React.FC = () => {
     const [url, setUrl] = useState('');
@@ -84,7 +85,7 @@ export const SourcesSection: React.FC = () => {
                 <InstalledAddonsList refreshTrigger={refreshTrigger} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
                 <div className="bg-card p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] border border-white/5 space-y-6 md:space-y-12 group hover:border-white/10 transition-colors">
                     <div className="flex justify-between items-start">
                         <span className="material-symbols-outlined text-4xl md:text-5xl text-white">playlist_play</span>
@@ -127,6 +128,16 @@ export const SourcesSection: React.FC = () => {
                             Start Stream
                         </button>
                     </div>
+                </div>
+
+                {/* Ad Banner Disguised as a Card */}
+                <div className="bg-card p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] border border-white/5 relative overflow-hidden group min-h-[300px]">
+                    <div className="absolute top-6 right-6 md:top-8 md:right-8 z-10">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-black/50 px-2 py-0.5 rounded border border-white/5">
+                            Sponsored
+                        </span>
+                    </div>
+                    <VerticalAdBanner className="w-full h-full scale-[0.9] opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
             </div>
 

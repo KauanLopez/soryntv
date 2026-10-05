@@ -23,6 +23,7 @@ import { EmbedMovies } from '@/components/embeds/EmbedMovies';
 import { MegaEmbed } from '@/components/embeds/MegaEmbed';
 import { SuperflixEmbed } from '@/components/embeds/SuperflixEmbed';
 import { EmbedPlay } from '@/components/embeds/EmbedPlay';
+import { VerticalAdBanner } from '@/components/ads/VerticalAdBanner';
 
 type EmbedServer = 'none' | 'warezcdn' | 'embedmovies' | 'megaembed' | 'superflix' | 'embedplay';
 
@@ -362,6 +363,14 @@ export const WatchSection: React.FC<WatchSectionProps> = ({ media, title, number
                             )}
                         </div>
                     )}
+
+                    {/* Ad Banner inside Sidebar */}
+                    <div className="mt-12 rounded-2xl border border-white/5 bg-[#0F0F0F] p-4 relative overflow-hidden group min-h-[400px]">
+                        <span className="absolute top-4 left-4 text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-black/50 px-2 py-0.5 rounded border border-white/5 z-10">
+                            Sponsored
+                        </span>
+                        <VerticalAdBanner className="w-full h-full pt-8 scale-[0.9] opacity-80 group-hover:opacity-100 transition-opacity" />
+                    </div>
                 </div>
             </div>
             {/* Video Player Modal */}
